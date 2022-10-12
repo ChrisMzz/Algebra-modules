@@ -1,4 +1,4 @@
-from group import*
+from lib.source.group import*
 from copy import deepcopy
 
 

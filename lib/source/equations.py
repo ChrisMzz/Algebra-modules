@@ -1,4 +1,4 @@
-from group import *
+from lib.source.group import *
 import numpy as np
 
 class Divisors :

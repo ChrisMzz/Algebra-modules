@@ -11,7 +11,7 @@ class CyclicGroup :
     
     def __init__(self, n):
         self.group = [i for i in range(n)]
-        
+    
     def order(self, el):
         thresh = el
         n = len(self.group)
