@@ -12,6 +12,10 @@ class CyclicGroup :
     def __init__(self, n):
         self.group = [i for i in range(n)]
     
+    def __iter__(self):
+        for sigma in self.group:
+            yield sigma
+    
     def order(self, el):
         thresh = el
         n = len(self.group)
