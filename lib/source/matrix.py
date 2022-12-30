@@ -1,5 +1,7 @@
 from lib.source.group import*
 from copy import deepcopy
+import sympy as sp
+import numpy as np
 
 
 def sort(M, subindex_list):
@@ -47,7 +49,7 @@ class Matrix :
             line_list = args[0]
         else:
             line_list = args
-        self.matrix = [line for line in line_list]
+        self.matrix = [list(line) for line in line_list]
         self.n = len(self.matrix[0])
         m = 0
         for line in self.matrix:
@@ -74,6 +76,12 @@ class SqMatrix (Matrix):
             self.matrix = [[]]
             #print("Matrix does not have as many lines as columns.")
             self.n, self.m = 0, 0
+        self.coeffs = self.characteristic_polynomial_coefficients()
+        x = sp.Symbol("x")
+        self.characteristic_polynomial = 0
+        for i in range(self.n+1):
+            self.characteristic_polynomial += self.coeffs[i]*x**(self.n-i)
+        self.eigenvalues = self.get_eigenvalues()
     
     def __mul__(self, other):
         if type(other) == SqMatrix:
@@ -146,7 +154,30 @@ class SqMatrix (Matrix):
             temp = self.prod(temp)
         return temp
     
+    def transpose(self):
+        """Compute the transpose of the matrix.
+
+        Returns:
+            SqMatrix: The transpose of the matrix.
+        """
+        lines = {}
+        n = self.n
+        for i in range(n):
+            lines[i] = []
+        for i in range(n):
+            for j in range(n):
+                lines[j].append(self.matrix[i][j])
+        return SqMatrix(tuple(lines.values()))
+    
     def commutes_with(self, matrix):
+        """Check whether the matrix commutes with another matrix.
+
+        Args:
+            matrix (SqMatrix): The other matrix.
+
+        Returns:
+            bool: Whether the matrices commute or not.
+        """
         lr = self.prod(matrix)
         rl = matrix.prod(self)
         if lr.matrix == rl.matrix:
@@ -156,6 +187,11 @@ class SqMatrix (Matrix):
     
     
     def trace(self):
+        """Compute the trace of the matrix.
+
+        Returns:
+            float: The trace.
+        """
         trace = 0
         for i in range(self.n):
             for j in range(self.n):
@@ -164,6 +200,14 @@ class SqMatrix (Matrix):
         return trace
     
     def det(self, show=False):
+        """Compute the determinant of the matrix.
+
+        Args:
+            show (bool, optional): Whether to display the computation. Defaults to False.
+
+        Returns:
+            float: The determinant.
+        """
         n = self.n
         temp_sum = 0
         temp_str = ""
@@ -188,6 +232,14 @@ class SqMatrix (Matrix):
     
     
     def prod(self, matrix):
+        """Compute a matrix product.
+
+        Args:
+            matrix (SqMatrix): The other matrix.
+
+        Returns:
+            SqMatrix: _description_
+        """
         n = self.n
         new_matrix = ()
         for i in range(n):
@@ -200,7 +252,32 @@ class SqMatrix (Matrix):
             new_matrix += (temp_list,)
         return SqMatrix(new_matrix)
     
-    def caracteristic_p(self):
+    def vec_prod(self, vec):
+        """Compute the application of a matrix to a vector.
+
+        Args:
+            vec (list): Vector (list of coordinates)
+
+        Returns:
+            list: The new vector.
+        """
+        n =self.n
+        if len(vec) != n:
+            return
+        coords = []
+        for i in range(n):
+            tempsum = 0
+            for j in range(n):
+                tempsum += self.matrix[i][j]*vec[j]
+            coords.append(tempsum)
+        return tuple(coords)
+    
+    def characteristic_polynomial_coefficients(self):
+        """Get characteristic polynomial coefficients in decreasing order.
+
+        Returns:
+            list: List of coefficients.
+        """
         coeffs = [(-1)**(self.n), (-1)**(self.n-1)*self.trace()]
         for i in range(2,self.n): # fait varier le coefficient étudié, du coefficient du terme de plus haut degré au coefficient constant
             temp_c = 0
@@ -223,6 +300,216 @@ class SqMatrix (Matrix):
             # J'ai écrit n-i et non i car contrairement à la démonstration de cours j'étudie les termes en ordre décroissant
         coeffs.append(self.det())
         return coeffs
+    
+    
+    def is_colinear_with_basis_element(self, vector, basis):
+        """Check if a vector is colinear with an element from a basis.
 
-              
-                
+        Args:
+            vector (list): Vector (list of coordinates)
+            basis (list): Basis (list of vectors)
+
+        Returns:
+            bool: Whether there exists a colinear vector in the basis or not.
+        """
+        n = len(vector)
+        for basis_vector in basis:
+            k = 0
+            while basis_vector[k] == 0:
+                k += 1
+            if vector[k] == 0:
+                pass
+            else:
+                (l, m) = (basis_vector[k], vector[k])
+                scaled_basis_vector = [basis_vector[i]*m for i in range(n)]
+                scaled_vector = [vector[i]*l for i in range(n)]
+                if scaled_basis_vector == scaled_vector:
+                    return True
+        return False
+    
+
+    def get_eigenvalue_algmultiplicity(self, eigenvalue):
+        """Compute the algebraic multiplicity of a specified eigenvalue.
+
+        Args:
+            eigenvalue (float): The specified eigenvalue.
+
+        Returns:
+            int: The eigenvalue's algebraic multiplicity.
+        """
+        algmultiplicity = 0
+        x = sp.Symbol("x")
+        n = self.n
+        coeffs = self.coeffs
+        polynomial = 0
+        for i in range(n+1):
+            polynomial += coeffs[i]*x**(n-i)
+        while eigenvalue in sp.solvers.solve(polynomial):
+            algmultiplicity += 1
+            polynomial = 0
+            temp = []
+            for i in range(n+1-algmultiplicity):
+                temp.append((n-i-(algmultiplicity-1))*coeffs[i])
+            coeffs = temp
+            for i in range(n+1-algmultiplicity):
+                polynomial += coeffs[i]*x**(n-i-algmultiplicity)
+        return algmultiplicity
+            
+        
+    def get_eigenvalues(self):
+        """Compute eigenvalues associated to the matrix.
+
+        Returns:
+            dict: Dictionary of the form {eigenvalue : algebraic multiplicity}.
+        """
+        x = sp.Symbol("x")
+        n = self.n
+        coeffs = self.coeffs
+        polynomial = 0
+        for i in range(n+1):
+            polynomial += coeffs[i]*x**(n-i)
+        eigenvalues = sp.solvers.solve(polynomial, x)
+        values_with_algmultiplicity = {}
+        for eigenvalue in eigenvalues:
+            values_with_algmultiplicity[eigenvalue] = self.get_eigenvalue_algmultiplicity(eigenvalue)
+        return values_with_algmultiplicity
+
+        
+        
+    def get_eigenvectors(self, eigenvalue):
+        if eigenvalue not in self.eigenvalues.keys():
+            return
+        A = deepcopy(self)
+        n = self.n
+        x = []
+        for i in range(1,n+1):
+            x.append(sp.Symbol(f"x{i}"))
+        return sp.solvers.solve((A-eigenvalue).vec_prod(x), x)
+    
+    def get_generalised_eigenvectors(self, eigenvalue):
+        """Get all generalised eigenvectors associated to a specified eigenvalue
+
+        Args:
+            eigenvalue (float): The eigenvector
+
+        Returns:
+            list: List of generalised eigenvectors.
+        """
+        general_vectors = [self.get_eigenvectors(eigenvalue)]
+        alg, p = self.eigenvalues[eigenvalue] - 1, 1
+        A = deepcopy(self)
+        n = self.n
+        x = []
+        for i in range(1,n+1):
+            x.append(sp.Symbol(f"x{i}"))
+        while alg > 0:
+            p += 1
+            general_vectors.append(sp.solvers.solve(((A-eigenvalue)**p).vec_prod(x), x))
+            alg -= 1
+        return general_vectors
+
+    def make_vector_from_solution(self, solution, symbols, bias=0):
+        """Transform a sympy dictionary solution into a vector.
+
+        Args:
+            solution (dict): The solution. Can also be an empty list.
+            symbols (list): List of sympy symbols
+            bias (int, optional): Shifts parameter selection (only used if previous selection is colinear with another vector)
+        Returns:
+            list: The vector created.
+        """
+        vector = []
+        parameters = {}
+        if bias >= self.n or solution == {}:
+            return
+        if solution == [] or solution == {}: # if ker(A-eigenvalue) = R^n
+            pot = [[int(i==j) for i in range(self.n)] for j in range(self.n)]
+            for symbol in symbols:
+                f = sp.lambdify([symbols], symbol, 'numpy')
+                vector.append(f(pot[bias]))
+            return vector
+        i = 0
+        for symbol in symbols:
+            if symbol not in solution.keys():
+                parameters[symbol] = int(i==bias)
+                i += 1
+        #print(f"parameters for {solution} : {parameters}")
+        for symbol in symbols:
+            if symbol in solution.keys():
+                f = sp.lambdify([parameters.keys()], solution[symbol], 'numpy')
+                vector.append(f(list(parameters.values())))
+            else:
+                f = sp.lambdify([parameters.keys()], symbol, 'numpy')
+                space_size = len(parameters.keys())
+                pot = [[int(i==j) for i in range(space_size)] for j in range(space_size)]
+                vector.append(f(pot[bias]))
+        return vector
+      
+    def get_all_generalised_eigenvectors(self):
+        """Get every generalised eigenvector, for each eigenvalue.
+
+        Returns:
+            list: List of eigenvectors.
+        """
+        space_basis = [] # list to be filled with generalised eigenvectors
+        n = self.n
+        x = []
+        nul_vector = [0 for _ in range(n)]
+        for i in range(1,n+1):
+            x.append(sp.Symbol(f"x{i}"))
+        for eigenvalue in self.eigenvalues.keys():
+            if self.eigenvalues[eigenvalue] == 1:
+                solution = self.get_eigenvectors(eigenvalue)
+                print(f"Solution for {eigenvalue} : {solution}")
+                space_basis.append(self.make_vector_from_solution(solution, x))
+            else:
+                for solution in self.get_generalised_eigenvectors(eigenvalue):
+                    print(f"Solution for {eigenvalue} : {solution}")
+                    bias=0
+                    vector = self.make_vector_from_solution(solution, x, bias)
+                    while vector in space_basis and vector != nul_vector and self.is_colinear_with_basis_element(vector, space_basis):
+                        bias +=1
+                        vector = self.make_vector_from_solution(solution, x, bias)
+                    space_basis.append(self.make_vector_from_solution(solution, x, bias))
+        return space_basis
+
+    def triangular_with_general_eigenspaces(self, display=True, round=-1):
+        """Get triangular matrix and change-of-basis made with generalised eigenvectors.
+
+        Args:
+            display (bool, optional): Whether to display results. Defaults to True.
+            round (int, optional): Rounds all matrix elements to `round` decimal places.
+
+        Returns:
+            (SqMatrix, SqMatrix): (T, P), the triangular matrix and change-of-basis matrix.
+        """
+        n = self.n
+        basis = self.get_all_generalised_eigenvectors()
+        P = SqMatrix(tuple(basis)).transpose()
+        inverse = np.linalg.inv(np.array(P.matrix))
+        iP = []
+        for i in range(n):
+            temp = []
+            for j in range(n):
+                if round == 0:
+                    temp.append(int(np.round(inverse[i][j],round)))
+                elif round != -1:
+                    temp.append(np.round(inverse[i][j],round))
+                else:
+                    temp.append(inverse[i][j])
+            iP.append(temp)
+        iP = SqMatrix(tuple(iP))
+        T = iP*self*P
+        if round != -1:
+            for i in range(n):
+                for j in range(n):
+                    if round == 0:
+                        T.matrix[i][j] = int(np.round(T.matrix[i][j],round))
+                    else:
+                        T.matrix[i][j] = np.round(T.matrix[i][j],round)
+        if display:
+            print(f"T =\n{T}\nP =\n{P}\n A = PTP^(-1)")
+        return T, P
+        
+        
+            
