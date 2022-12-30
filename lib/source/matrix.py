@@ -491,11 +491,6 @@ class SqMatrix (Matrix):
         for i in range(n):
             temp = []
             for j in range(n):
-                if round == 0:
-                    temp.append(int(np.round(inverse[i][j],round)))
-                elif round != -1:
-                    temp.append(np.round(inverse[i][j],round))
-                else:
                     temp.append(inverse[i][j])
             iP.append(temp)
         iP = SqMatrix(tuple(iP))
