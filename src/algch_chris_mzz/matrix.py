@@ -1,4 +1,4 @@
-from lib.source.group import*
+from algch_chris_mzz.group import*
 from copy import deepcopy
 import sympy as sp
 import numpy as np

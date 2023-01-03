@@ -1,22 +1,3 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-
-# C extensions
-*.so
-
+LICENSE
+dist
 MANIFEST
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IPython
-profile_default/
-ipython_config.py
-
-__pypackages__/
-
-
-# my own stuff
-ideas/
